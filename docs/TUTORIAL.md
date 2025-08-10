@@ -28,41 +28,40 @@ venv\Scripts\activate
 python src/main.py
 ```
 
-## 4. 전략 세부 설명
+## 4. 백테스팅 (Backtrader 사용)
+Jesse 대신 Backtrader를 사용한 백테스팅:
 
-### 4.1 스캘핑 모드
+### 4.1 데이터 준비
+Bybit 데이터를 CSV로 내려받아 `backtest/data` 디렉토리에 저장
+
+### 4.2 백테스팅 실행
+```bash
+python backtest/backtrader_strategy.py
+```
+
+### 4.3 결과 해석
+- 초기/최종 포트폴리오 가치 비교
+- 백테스팅 결과 시각화 (차트)
+- 수익률, MDD, 샤프 지수 분석
+
+## 5. 전략 세부 설명
+### 5.1 스캘핑 모드
 - **진입 조건**:
   1. 가격이 Volume Profile POC 근접
   2. CVD 20% 이상 급등
   3. OBV 단기 > 장기 이평
   4. Market Profile Poor High 돌파
-- **포지션 관리**:
-  - 손절: 돌파 지지선 아래 0.5%
-  - 익절: 위험-보상 비율 2:1
 
-### 4.2 스윙 모드
+### 5.2 스윙 모드
 - **진입 조건**:
   1. 주간 Value Area 이탈
   2. OBV 강세 다이버전스
   3. CVD 강세 다이버전스
   4. Volume Profile 저거래량 구간 통과
-- **포지션 관리**:
-  - 손절: 주요 지지선 아래 1%
-  - 익절: Poor High 복구 지점 또는 위험-보상 2:1
 
-## 5. 모니터링
-- `logs/` 디렉토리에서 실시간 로그 확인:
-  ```log
-  2025-08-10 21:30:15 - LONG 진입: 0.05@50200, SL: 49949, TP: 50502
-  2025-08-10 21:45:30 - Take Profit 실행: 0.05@50502 (+302)
-  ```
-
-## 6. 백테스팅
-```bash
-jesse run backtest --start 2024-01-01 --end 2024-12-31
-```
+## 6. 모니터링
+- `logs/` 디렉토리에서 실시간 로그 확인
 
 ## 7. 문제 해결
-- **데이터 부족**: `jesse import-candles` 명령으로 데이터 수집
+- **데이터 부족**: `data_collection.py`로 데이터 수집
 - **전략 수정**: `src/strategies/integrated_volume_strategy.py` 조정
-- **디버깅**: `jesse run --debug` 모드 활성화
