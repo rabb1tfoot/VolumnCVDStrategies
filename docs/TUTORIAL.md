@@ -1,79 +1,68 @@
-# 자동매매 시스템 튜토리얼
+# 통합 거래량 기반 전략 사용 가이드
 
-## 1. 시스템 설정
-1. 저장소 복제:
-   ```bash
-   git clone https://github.com/rabb1tfoot/VolumnCVDStrategies.git
-   cd VolumnCVDStrategies
-   ```
+## 1. 전략 개요
+통합 거래량 기반 전략은 4가지 핵심 지표(OBV, Volume Profile, CVD, Market Profile)를 결합하여:
+- 단기 스캘핑 기회 포착
+- 중장기 스윙 기회 식별
+- 거짓 신호 필터링 및 승률 향상
 
-2. 가상 환경 생성 및 활성화:
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate
-   ```
+## 2. 전략 설정
+`config.py`에서 전략 매개변수 조정:
+```python
+{
+    'strategy': 'IntegratedVolumeStrategy',
+    'parameters': {
+        'scalping_enabled': True,  # 스캘핑 모드 활성화
+        'swing_enabled': True,     # 스윙 모드 활성화
+        'risk_reward_ratio': 2.0   # 위험-보상 비율
+    }
+}
+```
 
-3. 의존성 설치:
-   ```bash
-   pip install -r requirements.txt
-   ```
+## 3. 실행 방법
+```bash
+# 가상 환경 활성화 (Windows)
+venv\Scripts\activate
 
-4. 환경 설정 파일 생성:
-   ```bash
-   copy config\.env.template config\.env
-   ```
-   - `config\.env` 파일에 Bybit API 키 입력
-   - 거래 전략 및 스타일 설정 (TRADING_STRATEGY, TRADING_STYLE)
+# 메인 실행
+python src/main.py
+```
 
-## 2. 실시간 거래 실행
-1. 메인 스크립트 실행:
-   ```bash
-   python src/main.py
-   ```
-   - 시스템이 자동으로 설정된 전략 기반 매매 실행
-   - 거래 내역은 `logs/` 디렉토리에 저장
+## 4. 전략 세부 설명
 
-## 3. 백테스팅 실행
-1. 백테스팅 디렉토리 이동:
-   ```bash
-   cd backtest
-   ```
+### 4.1 스캘핑 모드
+- **진입 조건**:
+  1. 가격이 Volume Profile POC 근접
+  2. CVD 20% 이상 급등
+  3. OBV 단기 > 장기 이평
+  4. Market Profile Poor High 돌파
+- **포지션 관리**:
+  - 손절: 돌파 지지선 아래 0.5%
+  - 익절: 위험-보상 비율 2:1
 
-2. 백테스팅 설정 수정 (`config.py`):
-   - 시작/종료 날짜 조정
-   - 거래 심볼, 금액 설정
-   - 위험 관리 파라미터 조정
+### 4.2 스윙 모드
+- **진입 조건**:
+  1. 주간 Value Area 이탈
+  2. OBV 강세 다이버전스
+  3. CVD 강세 다이버전스
+  4. Volume Profile 저거래량 구간 통과
+- **포지션 관리**:
+  - 손절: 주요 지지선 아래 1%
+  - 익절: Poor High 복구 지점 또는 위험-보상 2:1
 
-3. 백테스팅 실행:
-   ```bash
-   jesse run
-   ```
-   - 결과는 터미널에 출력 및 `storage/` 디렉토리에 저장
+## 5. 모니터링
+- `logs/` 디렉토리에서 실시간 로그 확인:
+  ```log
+  2025-08-10 21:30:15 - LONG 진입: 0.05@50200, SL: 49949, TP: 50502
+  2025-08-10 21:45:30 - Take Profit 실행: 0.05@50502 (+302)
+  ```
 
-## 4. 전략 커스터마이징
-1. 새 전략 추가:
-   - `src/strategies/` 디렉토리에 새 파이썬 파일 생성
-   - `generate_signals` 메서드 구현
-   - `.env` 파일에 새 전략 이름 추가
+## 6. 백테스팅
+```bash
+jesse run backtest --start 2024-01-01 --end 2024-12-31
+```
 
-2. Jesse 전략 수정:
-   - `backtest/strategies/` 디렉토리에서 전략 파일 수정
-   - `should_long()`, `should_short()` 메서드 구현
-
-## 5. 모니터링 및 문제 해결
-1. 로그 확인:
-   - `logs/trading_*.log` 파일에서 거래 내역 확인
-   - `logs/` 디렉토리의 오류 로그 분석
-
-2. 문제 발생 시:
-   - GitHub 이슈 트래커에 오류 내용 보고
-   - `config\.env`에서 `LOG_LEVEL`을 `DEBUG`로 변경 후 재실행
-
-## 6. 성능 최적화
-1. 파라미터 튜닝:
-   - `config.py` 및 `.env` 파일의 위험 관리 파라미터 조정
-   - 전략별 임계값 최적화
-
-2. 멀티타임프레임 분석:
-   - 장기/단기 차트 결합 분석
-   - `data_collection.py`에서 다중 시간대 데이터 수집 구현
+## 7. 문제 해결
+- **데이터 부족**: `jesse import-candles` 명령으로 데이터 수집
+- **전략 수정**: `src/strategies/integrated_volume_strategy.py` 조정
+- **디버깅**: `jesse run --debug` 모드 활성화
