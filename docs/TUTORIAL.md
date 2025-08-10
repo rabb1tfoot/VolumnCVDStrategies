@@ -32,17 +32,56 @@ python src/main.py
 Jesse 대신 Backtrader를 사용한 백테스팅:
 
 ### 4.1 데이터 준비
-Bybit 데이터를 CSV로 내려받아 `backtest/data` 디렉토리에 저장
+1. Bybit API를 통해 데이터 수집:
+```bash
+python src/data_collection.py
+```
+2. 수집된 데이터는 `backtest/data/` 디렉토리에 CSV 형식으로 저장
 
 ### 4.2 백테스팅 실행
+1. `backtest/backtrader_strategy.py` 파일에서 데이터 경로 설정:
+```python
+data = bt.feeds.GenericCSVData(
+    dataname='backtest/data/bybit_btcusdt_1h.csv',  # 실제 데이터 경로로 수정
+    fromdate=datetime(2024, 1, 1),
+    todate=datetime(2024, 12, 31),
+    dtformat=('%Y-%m-%d'),
+    openinterest=-1
+)
+```
+2. 백테스팅 실행:
 ```bash
 python backtest/backtrader_strategy.py
 ```
 
 ### 4.3 결과 해석
-- 초기/최종 포트폴리오 가치 비교
-- 백테스팅 결과 시각화 (차트)
-- 수익률, MDD, 샤프 지수 분석
+1. **터미널 출력**:
+   ```
+   Starting Portfolio Value: 10000.00
+   Final Portfolio Value: 12450.75
+   ```
+   - 초기/최종 포트폴리오 가치 비교로 수익률 계산
+
+2. **시각화 결과**:
+   - 자산 변동 곡선
+   - 매수/매도 신호 표시
+   - 기술적 지표(OBV, 이동평균) 표시
+
+3. **성능 지표**:
+   - 총 수익률
+   - 최대 자본 인하(MDD)
+   - 승률
+   - 평균 손익비
+
+### 4.4 백테스팅 최적화
+```python
+# backtrader_strategy.py에 추가
+cerebro.optstrategy(
+    IntegratedVolumeStrategy,
+    risk_reward_ratio=[1.5, 2.0, 2.5],  # 최적의 위험-보상 비율 탐색
+    scalping_enabled=[True, False]       # 스캘핑 모드 활성화 여부 테스트
+)
+```
 
 ## 5. 전략 세부 설명
 ### 5.1 스캘핑 모드
@@ -65,3 +104,4 @@ python backtest/backtrader_strategy.py
 ## 7. 문제 해결
 - **데이터 부족**: `data_collection.py`로 데이터 수집
 - **전략 수정**: `src/strategies/integrated_volume_strategy.py` 조정
+- **백테스팅 오류**: `backtest/backtrader_strategy.py` 디버깅
