@@ -1,0 +1,6 @@
+tree 3ed2f1d706ae2de5e77874a176fb0ad99722a840
+parent e7851ca3b538e515ac9f479148a1189955cd5800
+author Your Name <user@example.com> 1754821640 +0900
+committer Your Name <user@example.com> 1754821640 +0900
+
+Add multi-strategy support and documentation (exclude venv)

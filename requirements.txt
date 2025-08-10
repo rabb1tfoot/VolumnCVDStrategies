@@ -1,0 +1,11 @@
+# Required libraries
+ccxt==4.2.77
+pandas==2.2.3  # Jesse 호환 버전으로 업데이트
+numpy==1.26.4
+python-dotenv==0.19.2
+jesse==1.10.5
+requests==2.32.3
+TA-Lib==0.4.28; sys_platform != 'win32'
+
+# Windows users: Download TA-Lib wheel from
+# https://www.lfd.uci.edu/~gohlke/pythonlibs/#ta-lib
