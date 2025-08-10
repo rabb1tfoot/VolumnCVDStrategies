@@ -1,91 +1,128 @@
 import backtrader as bt
+from datetime import datetime, timedelta
+import random
 import pandas as pd
-from datetime import datetime
+import numpy as np
+import sys
+import os  # os 모듈 추가
 
-class IntegratedVolumeStrategy(bt.Strategy):
+# src 디렉토리 경로 추가
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from strategies.obv_strategy import OBVStrategy  # 전략 임포트
+import json
+
+# 간단한 랜덤 워크 데이터 생성 클래스 (날짜 정보 추가)
+class RandomWalk(bt.feeds.DataBase):
     params = (
-        ('scalping_enabled', True),
-        ('swing_enabled', True),
-        ('risk_reward_ratio', 2.0),
+        ('start', datetime(2023, 1, 1)),
+        ('open', 50000.0),
+        ('high', 52000.0),
+        ('low', 48000.0),
+        ('close', 51000.0),
+        ('volume', 10000.0),
+        ('timeframe', bt.TimeFrame.Minutes),
+        ('compression', 5),
     )
-
+    
     def __init__(self):
-        # 데이터 참조
-        self.dataclose = self.datas[0].close
-        self.dataopen = self.datas[0].open
-        self.datahigh = self.datas[0].high
-        self.datalow = self.datas[0].low
-        self.volume = self.datas[0].volume
+        super().__init__()
+        self.last_price = self.p.close
+        self.vol = self.p.volume
+        self.current_date = self.p.start
         
-        # 지표 계산 (예시)
-        self.obv = bt.indicators.OnBalanceVolume(self.datas[0])
-        self.sma_obv_short = bt.indicators.SMA(self.obv, period=5)
-        self.sma_obv_long = bt.indicators.SMA(self.obv, period=20)
+    def start(self):
+        super().start()
+        self._index = 0
         
-    def next(self):
-        # 포지션 보유 중이면 스킵
-        if self.position:
-            return
+    def _load(self):
+        if self._index >= 100:  # 100개의 봉 생성
+            return False
             
-        # 통합 스캘핑 전략 조건
-        if self.params.scalping_enabled and self._scalping_long_conditions():
-            self.buy()
-            
-        # 통합 스윙 전략 조건
-        if self.params.swing_enabled and self._swing_long_conditions():
-            self.buy()
+        # 랜덤 가격 생성
+        change = random.uniform(-0.02, 0.02)
+        self.lines.open[0] = self.last_price
+        self.lines.high[0] = self.last_price * (1 + abs(change))
+        self.lines.low[0] = self.last_price * (1 - abs(change))
+        self.lines.close[0] = self.last_price * (1 + change)
+        self.lines.volume[0] = self.vol * random.uniform(0.8, 1.2)
+        self.lines.datetime[0] = bt.date2num(self.current_date)
+        
+        # 다음 봉을 위해 날짜 업데이트 (5분 간격)
+        self.current_date += timedelta(minutes=5)
+        self.last_price = self.lines.close[0]
+        self._index += 1
+        
+        return True
 
-    def _scalping_long_conditions(self):
-        # 간단한 조건 예시 (실제 구현은 전략에 맞게 확장 필요)
-        return (self.dataclose[0] > self.dataclose[-1] and 
-                self.volume[0] > self.volume[-1] * 1.2)
+# 백테스팅 설정
+cerebro = bt.Cerebro()
 
-    def _swing_long_conditions(self):
-        # 간단한 조건 예시
-        return (self.dataclose[0] > bt.indicators.SMA(self.dataclose, period=50)[0] and
-                self.obv[0] > self.sma_obv_short[0] > self.sma_obv_long[0])
+# 데이터 로드
+data = RandomWalk(
+    dataname='RandomWalk',
+    timeframe=bt.TimeFrame.Minutes,
+    compression=5,
+    start=datetime(2023, 1, 1),
+    open=50000.0,
+    high=52000.0,
+    low=48000.0,
+    close=51000.0,
+    volume=10000.0
+)
+cerebro.adddata(data)
 
-    def notify_order(self, order):
-        if order.status in [order.Submitted, order.Accepted]:
-            return
-            
-        if order.status in [order.Completed]:
-            if order.isbuy():
-                # 위험-보상 비율 기반 손절/익절 설정
-                stop_price = order.executed.price * 0.99
-                take_profit = order.executed.price * (1 + self.params.risk_reward_ratio * 0.01)
-                self.sell(exectype=bt.Order.Stop, price=stop_price)
-                self.sell(exectype=bt.Order.Limit, price=take_profit)
+# 전략 추가
+cerebro.addstrategy(OBVStrategy)
 
-if __name__ == '__main__':
-    # Cerebro 엔진 생성
-    cerebro = bt.Cerebro()
-    
-    # 데이터 로드 (예시, 실제 Bybit 데이터 사용)
-    data = bt.feeds.GenericCSVData(
-        dataname='path/to/your/data.csv',
-        fromdate=datetime(2024, 1, 1),
-        todate=datetime(2024, 12, 31),
-        dtformat=('%Y-%m-%d'),
-        openinterest=-1
-    )
-    
-    # 데이터 추가
-    cerebro.adddata(data)
-    
-    # 전략 추가
-    cerebro.addstrategy(IntegratedVolumeStrategy)
-    
-    # 초기 자본 설정
-    cerebro.broker.setcash(10000.0)
-    
-    # 수수료 설정
-    cerebro.broker.setcommission(commission=0.001)
-    
-    # 백테스팅 실행
-    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-    cerebro.run()
-    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-    
-    # 결과 시각화
-    cerebro.plot()
+# 분석기 추가
+cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
+cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='stats')
+
+# 초기 자본 설정
+cerebro.broker.setcash(10000.0)
+
+# 백테스팅 실행
+print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+results = cerebro.run()
+print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+# 결과 저장
+os.makedirs('backtest/results', exist_ok=True)
+
+# 거래 내역 저장 (간소화)
+try:
+    trades_analysis = results[0].analyzers.trades.get_analysis()
+    if trades_analysis and hasattr(trades_analysis, 'total'):
+        trades_df = pd.DataFrame([{
+            'total_trades': trades_analysis.total.total,
+            'won': trades_analysis.won.total,
+            'lost': trades_analysis.lost.total,
+            'pnl_net': trades_analysis.pnl.net.total,
+        }])
+        trades_df.to_csv('backtest/results/trades.csv')
+        print(f"Saved trades summary")
+    else:
+        print("No trades executed during backtest")
+except Exception as e:
+    print(f"Error saving trades: {e}")
+
+# 성과 지표 저장
+try:
+    perf = {
+        'sharpe_ratio': results[0].analyzers.sharpe.get_analysis()['sharperatio'],
+        'drawdown': results[0].analyzers.drawdown.get_analysis()['max']['drawdown'],
+        'return_percent': results[0].analyzers.returns.get_analysis()['rtot'],
+    }
+    with open('backtest/results/performance.json', 'w') as f:
+        json.dump(perf, f)
+    print("Saved performance metrics")
+except Exception as e:
+    print(f"Performance analysis failed: {e}")
+
+# 결과 플롯 (옵션)
+# cerebro.plot(style='candlestick')
+
+print("Backtest results saved to backtest/results/")

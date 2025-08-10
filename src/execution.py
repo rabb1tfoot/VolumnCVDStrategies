@@ -2,7 +2,7 @@ import os
 import time
 import ccxt
 from dotenv import load_dotenv
-from .logging import logger  # 로깅 모듈에서 logger 가져오기
+from .custom_logger import logger  # 로깅 모듈에서 logger 가져오기
 
 # 환경 변수 로드
 load_dotenv(os.path.join(os.path.dirname(__file__), '../config/.env'))

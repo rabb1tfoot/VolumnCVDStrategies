@@ -3,7 +3,10 @@ import time
 import ccxt
 from dotenv import load_dotenv
 import pandas as pd
-from .logging import logger  # 로깅 모듈에서 logger 가져오기
+try:
+    from .custom_logger import logger  # 패키지 내부에서 임포트
+except ImportError:
+    from custom_logger import logger  # 직접 실행 시 절대 경로 임포트
 
 # 환경 변수 로드
 load_dotenv(os.path.join(os.path.dirname(__file__), '../config/.env'))
@@ -110,8 +113,25 @@ class DataCollector:
         logger.info("WebSocket connection closed")
         
 if __name__ == "__main__":
+    import os
+    import datetime
+    
     collector = DataCollector()
     print("Fetching historical data...")
-    data = collector.fetch_historical_data()
+    data = collector.fetch_historical_data(limit=500)  # 500개 데이터 가져오기
+    
     if data is not None:
         print(data.head())
+        
+        # 데이터 저장 디렉토리 생성
+        data_dir = os.path.join(os.path.dirname(__file__), '../backtest/data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # 파일 이름 생성 (예: bybit_btcusdt_1h_20250810.csv)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d")
+        filename = f"bybit_{collector.symbol.replace('/', '')}_1h_{timestamp}.csv"
+        filepath = os.path.join(data_dir, filename)
+        
+        # CSV로 저장
+        data.to_csv(filepath)
+        print(f"Data saved to {filepath}")
